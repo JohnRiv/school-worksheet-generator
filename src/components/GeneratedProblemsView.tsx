@@ -1,15 +1,28 @@
+
 "use client";
 
-import { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useAppContext } from '@/app/context/AppContext';
 import { ProblemCard } from '@/components/ProblemCard';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Eye, EyeOff, Shuffle } from 'lucide-react';
+import { Badge } from '@/components/ui/badge';
 
 export function GeneratedProblemsView() {
   const { generatedProblems } = useAppContext();
   const [showAllAnswers, setShowAllAnswers] = useState(false);
+  const [shuffledAnswerBank, setShuffledAnswerBank] = useState<string[]>([]);
+
+  // Simple shuffle function for answer bank
+  const shuffleArray = (array: string[] | undefined): string[] => {
+    if (!array || array.length === 0) return [];
+    return [...array].sort(() => Math.random() - 0.5);
+  };
+  
+  useEffect(() => {
+    setShuffledAnswerBank(shuffleArray(generatedProblems?.answerBank));
+  }, [generatedProblems?.answerBank]);
 
   if (!generatedProblems || generatedProblems.problems.length === 0) {
     return (
@@ -21,24 +34,6 @@ export function GeneratedProblemsView() {
         </Card>
     );
   }
-
-  // Simple shuffle function for answer bank
-  const shuffleArray = (array: string[]) => {
-    if (!array) return [];
-    return [...array].sort(() => Math.random() - 0.5);
-  };
-  
-  // Use useEffect to shuffle only once when component mounts or answerBank changes
-  const [shuffledAnswerBank, setShuffledAnswerBank] = useState<string[]>([]);
-  
-  React.useEffect(() => {
-    if (generatedProblems?.answerBank) {
-      setShuffledAnswerBank(shuffleArray(generatedProblems.answerBank));
-    } else {
-      setShuffledAnswerBank([]);
-    }
-  }, [generatedProblems?.answerBank]);
-
 
   return (
     <Card className="mt-8 shadow-xl">
@@ -61,7 +56,7 @@ export function GeneratedProblemsView() {
               key={index} 
               problemNumber={index + 1}
               problem={problem}
-              answer={generatedProblems.answerBank ? "See Answer Bank" : (generatedProblems.problems[index] /* Placeholder if no separate answers */)} // This needs actual answers if not using bank
+              answer={generatedProblems.answerBank ? "See Answer Bank" : (generatedProblems.problems[index] /* Placeholder if no separate answers */)}
               initiallyRevealed={showAllAnswers}
             />
           ))}
