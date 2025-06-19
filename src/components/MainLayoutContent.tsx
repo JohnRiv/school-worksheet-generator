@@ -12,7 +12,7 @@ export default function MainLayoutContent({ children }: { children: ReactNode })
         {children}
       </main>
       <footer className="text-center py-4 text-sm text-muted-foreground">
-        <p>&copy; {new Date().getFullYear()} School Worksheet Generator. All rights reserved.</p>
+        <p>Made with Google Gemini by JohnRiv</p>
       </footer>
       <LoadingOverlay />
     </>
