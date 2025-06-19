@@ -39,7 +39,13 @@ export function FileUpload({ onFileChange, disabled }: FileUploadProps) {
     const reader = new FileReader();
     reader.onloadend = () => {
       const dataUri = reader.result as string;
-      setPreview(dataUri);
+      // For PDF, we won't be able to generate a direct image preview this way
+      // We'll still pass the dataUri and file object for processing
+      if (file.type.startsWith('image/')) {
+        setPreview(dataUri);
+      } else {
+        setPreview(null); // Or a generic PDF icon preview if desired
+      }
       onFileChange(file, dataUri);
     };
     reader.readAsDataURL(file);
@@ -194,11 +200,11 @@ export function FileUpload({ onFileChange, disabled }: FileUploadProps) {
               <p className="mb-2 text-sm text-muted-foreground">
                 <span className="font-semibold text-primary">Click to upload</span> or drag and drop
               </p>
-              <p className="text-xs text-muted-foreground">PNG, JPG, GIF up to 10MB</p>
+              <p className="text-xs text-muted-foreground">PNG, JPG, HEIC, PDF up to 10MB</p>
               <Input
                 id="file-upload-input"
                 type="file"
-                accept="image/*"
+                accept="image/png,image/jpeg,image/heic,image/heif,application/pdf,.png,.jpg,.jpeg,.heic,.heif,.pdf"
                 onChange={handleFileSelectedOnInputChange}
                 className="sr-only"
                 disabled={disabled}
@@ -279,6 +285,13 @@ export function FileUpload({ onFileChange, disabled }: FileUploadProps) {
               data-ai-hint="worksheet preview"
             />
             {fileName && <p className="text-xs text-muted-foreground mt-2 text-center">{fileName}</p>}
+          </div>
+        )}
+         {fileName && !preview && captureMode === 'file' && ( // For non-image files like PDF
+          <div className="mt-4 p-4 border rounded-lg bg-muted/30 text-center">
+            <FileUp className="w-12 h-12 mx-auto mb-2 text-muted-foreground" />
+            <p className="text-sm font-medium text-foreground mb-1">Selected File:</p>
+            <p className="text-xs text-muted-foreground">{fileName}</p>
           </div>
         )}
       </CardContent>
