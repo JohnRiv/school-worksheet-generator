@@ -1,10 +1,11 @@
+
 "use client";
 
 import type { AnalyzeWorksheetOutput } from '@/ai/flows/analyze-worksheet';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Badge } from '@/components/ui/badge';
-import { Lightbulb, MessageSquareQuestion, ListChecks, FileJson } from 'lucide-react';
+import { Lightbulb, MessageSquareQuote, ListChecks, FileJson } from 'lucide-react';
 
 interface WorksheetAnalysisDisplayProps {
   analysis: AnalyzeWorksheetOutput;
@@ -41,7 +42,7 @@ export function WorksheetAnalysisDisplay({ analysis }: WorksheetAnalysisDisplayP
 
         <div>
           <h3 className="text-lg font-semibold mb-2 flex items-center font-headline">
-            <MessageSquareQuestion className="mr-2 h-5 w-5 text-accent" />
+            <MessageSquareQuote className="mr-2 h-5 w-5 text-accent" />
             Question Formats
           </h3>
           {analysis.questionFormats.length > 0 ? (
