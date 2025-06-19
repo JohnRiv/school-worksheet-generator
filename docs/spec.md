@@ -76,12 +76,13 @@ The core intelligence of the application resides in two main AI phases:
         }
         // Multiple concepts possible if a worksheet covers multiple areas
       ],
+      "worksheet_directions": "Complete all problems. Show your work.", // Optional: Extracted directions from the worksheet.
       "identified_question_formats": [
         "solve and show work" // e.g., "fill-in-the-blank", "multiple choice (A, B, C, D)", "underline the correct word"
         // Multiple formats possible
       ],
-      "example_questions": [
-        "23 x 45 =", // Array of strings, each being actual question text from the original worksheet. Crucial for guiding generation.
+      "example_questions": [ // Array of strings, up to 100 actual question texts from the original worksheet. Crucial for guiding generation.
+        "23 x 45 =", 
         "12 x 34 ="
       ],
       "answer_bank_present": false, // Boolean: true if original worksheet has an answer bank, false otherwise.
@@ -99,8 +100,9 @@ The core intelligence of the application resides in two main AI phases:
 *   **Problem Distribution (Multiple Concepts):** If multiple concepts are identified, Gemini is instructed to distribute the total requested `NUMBER` of problems across them as it deems appropriate, without explicit numerical instruction per concept from the application.
 *   **Gemini Prompt Construction:**
     ```
-    "The following JSON contains information about a school worksheet, including identified concepts, question formats, and example questions.
+    "The following JSON contains information about a school worksheet, including identified concepts, question formats, example questions, and possibly overall worksheet directions.
     Create a new set of ${NUMBER} practice problems that can test these same concepts, using similar question formats and styles to the example questions (but not the exact same content as those questions).
+    If 'worksheet_directions' are provided in the JSON, ensure the generated problems align with these directions.
     The output should be a JSON response structured as follows:
     ```json
     {
@@ -110,10 +112,11 @@ The core intelligence of the application resides in two main AI phases:
           "answer": "Solution/Answer for question here?"
         }
       ],
-      "answer_bank_present": <boolean value from input JSON>
+      "answer_bank_present": <boolean value from input JSON's answer_bank_present field>
     }
     ```
     Ensure the problems are distributed across all identified concepts as Gemini deems appropriate."
+    If the input JSON's 'answer_bank_present' field is true, also include an 'answerBank' field in your output JSON. This 'answerBank' should be an array of strings, containing only the 'answer' values from the 'problems' you generated, in a random order. If 'answer_bank_present' is false, do not include the 'answerBank' field.
     ```
 *   **Output (Expected from Gemini):**
 
@@ -130,7 +133,8 @@ The core intelligence of the application resides in two main AI phases:
         }
         // ... {NUMBER} problems ...
       ],
-      "answer_bank_present": true // Boolean value passed from the AI analysis input.
+      "answer_bank_present": true, // Boolean value passed from the AI analysis input.
+      "answerBank": ["Solution/Answer for question 2?", "Solution/Answer for question 1?"] // OPTIONAL: Present and shuffled if answer_bank_present was true in input.
     }
     ```
 
