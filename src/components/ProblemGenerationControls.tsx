@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState } from 'react';
@@ -40,15 +41,19 @@ export function ProblemGenerationControls() {
     setGeneratedProblems(null); // Clear previous problems
 
     try {
+      const worksheetAnalysisJson = JSON.stringify(worksheetAnalysis);
       let result;
       if (isCustom) {
-        result = await handleCustomizeProblems(worksheetAnalysis.jsonForProblemGeneration, customPrompt, numProblems);
+        result = await handleCustomizeProblems(worksheetAnalysisJson, customPrompt, numProblems);
       } else {
-        result = await handleGenerateProblems(worksheetAnalysis.jsonForProblemGeneration, numProblems);
+        result = await handleGenerateProblems(worksheetAnalysisJson, numProblems);
       }
 
       if (result.success && result.data) {
-        setGeneratedProblems(result.data);
+        // Assuming result.data is of type GeneratePracticeProblemsOutput or CustomizeProblemGenerationOutput
+        // These types might need adjustment if the AI flow for generation changes its output structure.
+        // For now, expecting { problems: string[], answerBank?: string[] }
+        setGeneratedProblems(result.data as any); 
         toast({
           title: "Problems Generated",
           description: `${numProblems} practice problems have been successfully generated.`,
@@ -111,3 +116,4 @@ export function ProblemGenerationControls() {
     </div>
   );
 }
+```

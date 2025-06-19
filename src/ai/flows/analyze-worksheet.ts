@@ -1,4 +1,5 @@
-// 'use server';
+
+'use server';
 /**
  * @fileOverview AI agent for analyzing a worksheet image to identify concepts and question formats.
  *
@@ -6,8 +7,6 @@
  * - AnalyzeWorksheetInput - The input type for the analyzeWorksheet function.
  * - AnalyzeWorksheetOutput - The return type for the analyzeWorksheet function.
  */
-
-'use server';
 
 import {ai} from '@/ai/genkit';
 import {z} from 'genkit';
@@ -22,14 +21,18 @@ const AnalyzeWorksheetInputSchema = z.object({
 });
 export type AnalyzeWorksheetInput = z.infer<typeof AnalyzeWorksheetInputSchema>;
 
+const IdentifiedConceptSchema = z.object({
+  subject: z.string().describe('The subject of the concept (e.g., "Math", "Grammar").'),
+  main_topic: z.string().describe('The main topic of the concept (e.g., "Multiplication", "Pronouns").'),
+  specific_concept: z.string().describe('The specific concept identified (e.g., "2-digit by 2-digit multiplication", "Reflexive Pronouns").'),
+});
+
 const AnalyzeWorksheetOutputSchema = z.object({
-  concepts: z.array(z.string()).describe('A list of concepts covered in the worksheet.'),
-  questionFormats: z.array(z.string()).describe('A list of question formats used in the worksheet.'),
-  exampleQuestions: z.array(z.string()).describe('A few example questions from the worksheet.'),
-  hasAnswerBank: z.boolean().describe('Whether the worksheet has an answer bank'),
-  jsonForProblemGeneration: z
-    .string()
-    .describe('A JSON string that can be used to generate new practice problems.'),
+  identified_concepts: z.array(IdentifiedConceptSchema).describe('A list of concepts covered in the worksheet.'),
+  identified_question_formats: z.array(z.string()).describe('A list of question formats used in the worksheet (e.g., "fill-in-the-blank", "multiple choice (A, B, C, D)", "underline the correct word").'),
+  example_questions: z.array(z.string()).describe('A few example questions extracted directly from the worksheet. This is crucial for guiding generation.'),
+  answer_bank_present: z.boolean().describe('Boolean: true if the original worksheet has an answer bank, false otherwise.'),
+  additional_notes_for_generation: z.string().default("").describe('Optional string: initially empty, can be appended by user input for re-analysis or customization. Defaults to an empty string.'),
 });
 export type AnalyzeWorksheetOutput = z.infer<typeof AnalyzeWorksheetOutputSchema>;
 
@@ -41,17 +44,38 @@ const prompt = ai.definePrompt({
   name: 'analyzeWorksheetPrompt',
   input: {schema: AnalyzeWorksheetInputSchema},
   output: {schema: AnalyzeWorksheetOutputSchema},
-  prompt: `You are an AI assistant that analyzes a worksheet image to identify the concepts, question formats, and example questions.
+  prompt: `You are an AI assistant that analyzes a worksheet image.
+Your goal is to extract structured information to help generate new practice problems.
 
-You will be provided with a photo of the worksheet. If removeHandwriting is true, you will attempt to remove the handwriting from the image before analyzing it.
-
-Based on the worksheet, extract the concepts covered, the question formats used, and some example questions.
-
-Return a JSON string that can be used to generate new practice problems. This JSON should include all the information needed to generate new problems that mimic the original worksheet, including question types, constraints, and any other relevant details.
-
+You will be provided with a photo of the worksheet.
 Worksheet Image: {{media url=photoDataUri}}
+{{#if removeHandwriting}}
+Attempt to remove any handwriting from the image before analysis.
+{{/if}}
 
-Output the response in JSON format.
+Analyze the worksheet and output a JSON object strictly adhering to the following structure:
+{
+  "identified_concepts": [
+    {
+      "subject": "string", // e.g., "Math", "Grammar", "Science"
+      "main_topic": "string", // e.g., "Addition", "Nouns", "Photosynthesis"
+      "specific_concept": "string" // e.g., "Adding 2-digit numbers with carrying", "Proper Nouns", "Light-dependent reactions"
+    }
+    // Include more concept objects if multiple distinct concepts are present.
+  ],
+  "identified_question_formats": [
+    "string" // e.g., "Solve and show work", "Fill-in-the-blank", "Multiple choice (A, B, C, D)", "Underline the correct word"
+    // Include all identified question formats.
+  ],
+  "example_questions": [
+    "string" // Provide 2-3 actual example questions verbatim from the worksheet. These are critical.
+  ],
+  "answer_bank_present": boolean, // true if an answer bank is visible on the worksheet, false otherwise.
+  "additional_notes_for_generation": "string" // Initialize as an empty string "". This field can be appended later with user notes.
+}
+
+Ensure "additional_notes_for_generation" is an empty string in your initial analysis.
+Focus on accuracy and completeness based on the provided image.
 `,
 });
 
@@ -63,6 +87,11 @@ const analyzeWorksheetFlow = ai.defineFlow(
   },
   async input => {
     const {output} = await prompt(input);
+    // Ensure additional_notes_for_generation is present, defaulting to empty string if AI omits it
+    // Zod default should handle this, but as a safeguard:
+    if (output && typeof output.additional_notes_for_generation === 'undefined') {
+      output.additional_notes_for_generation = "";
+    }
     return output!;
   }
 );

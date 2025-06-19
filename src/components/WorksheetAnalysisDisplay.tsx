@@ -29,10 +29,12 @@ export function WorksheetAnalysisDisplay({ analysis }: WorksheetAnalysisDisplayP
             <Lightbulb className="mr-2 h-5 w-5 text-accent" />
             Identified Concepts
           </h3>
-          {analysis.concepts.length > 0 ? (
+          {analysis.identified_concepts && analysis.identified_concepts.length > 0 ? (
             <div className="flex flex-wrap gap-2">
-              {analysis.concepts.map((concept, index) => (
-                <Badge key={index} variant="secondary" className="text-sm px-3 py-1">{concept}</Badge>
+              {analysis.identified_concepts.map((concept, index) => (
+                <Badge key={index} variant="secondary" className="text-sm px-3 py-1">
+                  {concept.subject}: {concept.main_topic} - {concept.specific_concept}
+                </Badge>
               ))}
             </div>
           ) : (
@@ -45,9 +47,9 @@ export function WorksheetAnalysisDisplay({ analysis }: WorksheetAnalysisDisplayP
             <MessageSquareQuote className="mr-2 h-5 w-5 text-accent" />
             Question Formats
           </h3>
-          {analysis.questionFormats.length > 0 ? (
+          {analysis.identified_question_formats && analysis.identified_question_formats.length > 0 ? (
             <ul className="list-disc list-inside space-y-1 text-foreground">
-              {analysis.questionFormats.map((format, index) => (
+              {analysis.identified_question_formats.map((format, index) => (
                 <li key={index}>{format}</li>
               ))}
             </ul>
@@ -58,12 +60,12 @@ export function WorksheetAnalysisDisplay({ analysis }: WorksheetAnalysisDisplayP
 
         <div>
           <h3 className="text-lg font-semibold mb-2 flex items-center font-headline">
-             <ListChecks className="mr-2 h-5 w-5 text-accent" />
+             <ListChecks className="mr-2 h-5 w-5 text-accent" /> {/* Changed icon from MessageSquareQuestion */}
             Example Questions
           </h3>
-          {analysis.exampleQuestions.length > 0 ? (
+          {analysis.example_questions && analysis.example_questions.length > 0 ? (
             <ul className="list-decimal list-inside space-y-1 bg-muted/30 p-4 rounded-md text-foreground">
-              {analysis.exampleQuestions.map((question, index) => (
+              {analysis.example_questions.map((question, index) => (
                 <li key={index} className="italic">"{question}"</li>
               ))}
             </ul>
@@ -72,7 +74,7 @@ export function WorksheetAnalysisDisplay({ analysis }: WorksheetAnalysisDisplayP
           )}
         </div>
         
-        {analysis.hasAnswerBank && (
+        {analysis.answer_bank_present && (
           <div className="p-3 bg-green-100 dark:bg-green-900 border border-green-300 dark:border-green-700 rounded-md">
             <p className="text-sm font-medium text-green-700 dark:text-green-200">This worksheet appears to have an answer bank.</p>
           </div>
@@ -81,16 +83,28 @@ export function WorksheetAnalysisDisplay({ analysis }: WorksheetAnalysisDisplayP
         <div>
           <h3 className="text-lg font-semibold mb-2 flex items-center font-headline">
             <FileJson className="mr-2 h-5 w-5 text-accent" />
-            JSON for Problem Generation
+            Analysis JSON
           </h3>
           <ScrollArea className="h-40 w-full rounded-md border p-3 bg-muted/50">
             <pre className="text-xs whitespace-pre-wrap break-all">
-              <code>{analysis.jsonForProblemGeneration}</code>
+              <code>{JSON.stringify(analysis, null, 2)}</code>
             </pre>
           </ScrollArea>
           <p className="text-xs text-muted-foreground mt-1">This JSON is used by the AI to generate new problems.</p>
         </div>
+        
+        {analysis.additional_notes_for_generation && (
+           <div>
+            <h3 className="text-lg font-semibold mb-2 flex items-center font-headline">
+                Additional Notes for Generation
+            </h3>
+            <p className="text-muted-foreground whitespace-pre-wrap">{analysis.additional_notes_for_generation}</p>
+           </div>
+        )}
+
       </CardContent>
     </Card>
   );
 }
+
+```
