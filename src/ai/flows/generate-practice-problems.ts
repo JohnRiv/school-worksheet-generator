@@ -1,3 +1,4 @@
+
 'use server';
 
 /**
@@ -32,14 +33,20 @@ export type GeneratePracticeProblemsInput = z.infer<
   typeof GeneratePracticeProblemsInputSchema
 >;
 
+const ProblemSchema = z.object({
+  question: z.string().describe("The text of the generated question."),
+  answer: z.string().describe("The answer to the generated question.")
+});
+
 const GeneratePracticeProblemsOutputSchema = z.object({
   problems: z
-    .array(z.string())
-    .describe('An array of generated practice problems.'),
+    .array(ProblemSchema)
+    .describe('An array of generated practice problems, each with a question and an answer.'),
+  answer_bank_present: z.boolean().describe("Indicates if the original worksheet had an answer bank. This is passed through from the analysis phase."),
   answerBank: z
     .array(z.string())
     .optional()
-    .describe('An optional array of answers to the practice problems.'),
+    .describe('An optional array of answers for the generated problems, in random order. This should ONLY be present if answer_bank_present from the input analysis was true.'),
 });
 export type GeneratePracticeProblemsOutput = z.infer<
   typeof GeneratePracticeProblemsOutputSchema
@@ -57,18 +64,33 @@ const prompt = ai.definePrompt({
   output: {schema: GeneratePracticeProblemsOutputSchema},
   prompt: `You are an expert educator. Generate practice problems based on the following worksheet analysis.
 
-Worksheet Analysis:
-{{worksheetAnalysis}}
+Worksheet Analysis (JSON string):
+{{{worksheetAnalysis}}}
 
 Number of Problems to Generate: {{numberOfProblems}}
 
-{% if customPrompt %}
+{{#if customPrompt}}
 Custom Prompt: {{customPrompt}}
-{% endif %}
+{{/if}}
 
 Follow the format and concepts of the original worksheet.
+Parse the 'worksheetAnalysis' JSON. It contains a boolean field 'answer_bank_present'.
 
-Output the problems as a JSON array of strings. If the worksheet has an answer bank, generate an answerBank JSON array of strings in random order.`,
+Your output MUST be a JSON object with the following structure:
+{
+  "problems": [
+    {
+      "question": "Newly generated question text here?",
+      "answer": "Solution/Answer for question here?"
+    }
+  ],
+  "answer_bank_present": <boolean value from the input worksheetAnalysis.answer_bank_present field>,
+  "answerBank": ["array of strings"] 
+}
+The "answerBank" field is OPTIONAL. Include it ONLY IF the input worksheetAnalysis.answer_bank_present was true. If included, it should contain ONLY the 'answer' strings from the 'problems' array you generated above, in a random order. If worksheetAnalysis.answer_bank_present was false, do NOT include the "answerBank" field in your output.
+
+Ensure the problems are distributed across all identified concepts as appropriate.
+If 'additional_notes_for_generation' is present in the worksheetAnalysis, consider those notes.`,
 });
 
 const generatePracticeProblemsFlow = ai.defineFlow(
@@ -79,8 +101,12 @@ const generatePracticeProblemsFlow = ai.defineFlow(
   },
   async input => {
     try {
-      // Parse the worksheetAnalysis string to ensure it's valid JSON
-      JSON.parse(input.worksheetAnalysis);
+      // Ensure worksheetAnalysis is valid JSON before sending to AI
+      const parsedAnalysis = JSON.parse(input.worksheetAnalysis);
+      if (typeof parsedAnalysis.answer_bank_present !== 'boolean') {
+        // Attempt to fix or throw if critical info is missing/malformed
+        // For now, we'll let the AI try to handle it, but schema validation on input is better.
+      }
     } catch (e) {
       throw new Error(
         'Invalid JSON format for worksheetAnalysis: ' + (e as Error).message
@@ -90,3 +116,4 @@ const generatePracticeProblemsFlow = ai.defineFlow(
     return output!;
   }
 );
+

@@ -2,7 +2,7 @@
 "use client";
 
 import { useState } from 'react';
-import { useAppContext } from '@/app/context/AppContext';
+import { useAppContext, type GeneratedProblemsState } from '@/app/context/AppContext'; // Import GeneratedProblemsState
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -38,7 +38,7 @@ export function ProblemGenerationControls() {
     setIsLoading(true);
     setLoadingMessage(isCustom ? "Generating customized problems..." : "Generating problems...");
     setError(null);
-    setGeneratedProblems(null); // Clear previous problems
+    setGeneratedProblems(null); 
 
     try {
       const worksheetAnalysisJson = JSON.stringify(worksheetAnalysis);
@@ -50,10 +50,8 @@ export function ProblemGenerationControls() {
       }
 
       if (result.success && result.data) {
-        // Assuming result.data is of type GeneratePracticeProblemsOutput or CustomizeProblemGenerationOutput
-        // These types might need adjustment if the AI flow for generation changes its output structure.
-        // For now, expecting { problems: string[], answerBank?: string[] }
-        setGeneratedProblems(result.data as any); 
+        // Cast the result data to GeneratedProblemsState
+        setGeneratedProblems(result.data as GeneratedProblemsState); 
         toast({
           title: "Problems Generated",
           description: `${numProblems} practice problems have been successfully generated.`,

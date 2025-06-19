@@ -7,24 +7,29 @@ import { ProblemCard } from '@/components/ProblemCard';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Eye, EyeOff, Shuffle } from 'lucide-react';
-import { Badge } from '@/components/ui/badge';
+import { Badge } from '@/components/ui/badge'; // Added missing import
 
 export function GeneratedProblemsView() {
   const { generatedProblems } = useAppContext();
   const [showAllAnswers, setShowAllAnswers] = useState(false);
   const [shuffledAnswerBank, setShuffledAnswerBank] = useState<string[]>([]);
 
-  // Simple shuffle function for answer bank
   const shuffleArray = (array: string[] | undefined): string[] => {
     if (!array || array.length === 0) return [];
+    // Simple shuffle
     return [...array].sort(() => Math.random() - 0.5);
   };
   
   useEffect(() => {
-    setShuffledAnswerBank(shuffleArray(generatedProblems?.answerBank));
+    if (generatedProblems?.answerBank) {
+      setShuffledAnswerBank(shuffleArray(generatedProblems.answerBank));
+    } else {
+      setShuffledAnswerBank([]);
+    }
   }, [generatedProblems?.answerBank]);
 
-  if (!generatedProblems || generatedProblems.problems.length === 0) {
+
+  if (!generatedProblems || !generatedProblems.problems || generatedProblems.problems.length === 0) {
     return (
         <Card className="mt-8 bg-muted/40 shadow-inner">
             <CardHeader>
@@ -51,18 +56,18 @@ export function GeneratedProblemsView() {
       </CardHeader>
       <CardContent>
         <div className="space-y-6">
-          {generatedProblems.problems.map((problem, index) => (
+          {generatedProblems.problems.map((problemItem, index) => (
             <ProblemCard 
               key={index} 
               problemNumber={index + 1}
-              problem={problem}
-              answer={generatedProblems.answerBank ? "See Answer Bank" : (generatedProblems.problems[index] /* Placeholder if no separate answers */)}
+              problem={problemItem.question}
+              answer={generatedProblems.answer_bank_present ? "See Answer Bank" : problemItem.answer}
               initiallyRevealed={showAllAnswers}
             />
           ))}
         </div>
 
-        {shuffledAnswerBank.length > 0 && (
+        {generatedProblems.answer_bank_present && shuffledAnswerBank.length > 0 && (
           <div className="mt-8 pt-6 border-t">
             <h3 className="text-xl font-semibold mb-3 font-headline flex items-center">
               <Shuffle className="mr-2 h-5 w-5 text-primary"/>
