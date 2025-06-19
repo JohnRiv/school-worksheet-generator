@@ -30,7 +30,7 @@ const IdentifiedConceptSchema = z.object({
 const AnalyzeWorksheetOutputSchema = z.object({
   identified_concepts: z.array(IdentifiedConceptSchema).describe('A list of concepts covered in the worksheet.'),
   identified_question_formats: z.array(z.string()).describe('A list of question formats used in the worksheet (e.g., "fill-in-the-blank", "multiple choice (A, B, C, D)", "underline the correct word").'),
-  example_questions: z.array(z.string()).describe('A few example questions extracted directly from the worksheet. This is crucial for guiding generation.'),
+  example_questions: z.array(z.string()).describe('Up to 100 example questions extracted directly from the worksheet. This is crucial for guiding generation.'),
   answer_bank_present: z.boolean().describe('Boolean: true if the original worksheet has an answer bank, false otherwise.'),
   additional_notes_for_generation: z.string().default("").describe('Optional string: initially empty, can be appended by user input for re-analysis or customization. Defaults to an empty string.'),
 });
@@ -68,7 +68,7 @@ Analyze the worksheet and output a JSON object strictly adhering to the followin
     // Include all identified question formats.
   ],
   "example_questions": [
-    "string" // Provide 2-3 actual example questions verbatim from the worksheet. These are critical.
+    "string" // Provide up to 100 actual example questions verbatim from the worksheet. These are critical.
   ],
   "answer_bank_present": boolean, // true if an answer bank is visible on the worksheet, false otherwise.
   "additional_notes_for_generation": "string" // Initialize as an empty string "". This field can be appended later with user notes.
