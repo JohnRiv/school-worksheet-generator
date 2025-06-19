@@ -60,7 +60,7 @@ export function WorksheetAnalysisDisplay({ analysis }: WorksheetAnalysisDisplayP
 
         <div>
           <h3 className="text-lg font-semibold mb-2 flex items-center font-headline">
-             <ListChecks className="mr-2 h-5 w-5 text-accent" /> {/* Changed icon from MessageSquareQuestion */}
+             <ListChecks className="mr-2 h-5 w-5 text-accent" />
             Example Questions
           </h3>
           {analysis.example_questions && analysis.example_questions.length > 0 ? (
@@ -93,7 +93,7 @@ export function WorksheetAnalysisDisplay({ analysis }: WorksheetAnalysisDisplayP
           <p className="text-xs text-muted-foreground mt-1">This JSON is used by the AI to generate new problems.</p>
         </div>
         
-        {analysis.additional_notes_for_generation && (
+        {analysis.additional_notes_for_generation && analysis.additional_notes_for_generation.trim() !== "" && (
            <div>
             <h3 className="text-lg font-semibold mb-2 flex items-center font-headline">
                 Additional Notes for Generation
@@ -106,5 +106,3 @@ export function WorksheetAnalysisDisplay({ analysis }: WorksheetAnalysisDisplayP
     </Card>
   );
 }
-
-```
