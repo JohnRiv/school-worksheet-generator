@@ -81,7 +81,16 @@ export function ProblemGenerationControls() {
           id="numProblems" 
           type="number" 
           value={numProblems} 
-          onChange={(e) => setNumProblems(Math.max(1, parseInt(e.target.value)))} 
+          onChange={(e) => {
+            const val = parseInt(e.target.value, 10);
+            if (isNaN(val)) {
+              // If input is empty or not a number, default to 1.
+              setNumProblems(1);
+            } else {
+              // Ensure the number is at least 1.
+              setNumProblems(Math.max(1, val));
+            }
+          }} 
           min="1"
           className="max-w-xs text-base"
         />
@@ -114,3 +123,4 @@ export function ProblemGenerationControls() {
     </div>
   );
 }
+

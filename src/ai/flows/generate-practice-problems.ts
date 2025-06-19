@@ -45,8 +45,8 @@ const GeneratePracticeProblemsOutputSchema = z.object({
   answer_bank_present: z.boolean().describe("Indicates if the original worksheet had an answer bank. This is passed through from the analysis phase."),
   answerBank: z
     .array(z.string())
-    .optional()
-    .describe('An optional array of answers for the generated problems, in random order. This should ONLY be present if answer_bank_present from the input analysis was true.'),
+ .optional()
+    .describe('This field should be a boolean. If true, the UI should display an answer bank with answers from the generated problems. If false, no answer bank should be displayed.'),
 });
 export type GeneratePracticeProblemsOutput = z.infer<
   typeof GeneratePracticeProblemsOutputSchema
@@ -85,9 +85,9 @@ Your output MUST be a JSON object with the following structure:
     }
   ],
   "answer_bank_present": <boolean value from the input worksheetAnalysis.answer_bank_present field>,
-  "answerBank": ["array of strings"] 
+  "answerBank": <boolean: true if an answer bank should be displayed with the generated problems, false otherwise>
 }
-The "answerBank" field is OPTIONAL. Include it ONLY IF the input worksheetAnalysis.answer_bank_present was true. If included, it should contain ONLY the 'answer' strings from the 'problems' array you generated above, in a random order. If worksheetAnalysis.answer_bank_present was false, do NOT include the "answerBank" field in your output.
+Set "answerBank" to true ONLY IF the input worksheetAnalysis.answer_bank_present was true. Otherwise, set it to false.
 
 Ensure the problems are distributed across all identified concepts as appropriate.
 If 'additional_notes_for_generation' is present in the worksheetAnalysis, consider those notes.`,
