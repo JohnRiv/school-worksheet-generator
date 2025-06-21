@@ -1,5 +1,5 @@
-# Firebase Studio
+# School Worksheet Generator
 
-This is a NextJS starter in Firebase Studio.
+A Next.js web app built entirely with Gemini Firebase Studio to take photos of worksheets from school and generate additional practice problems just like the originals, as well as the answers to those problems.
 
-To get started, take a look at src/app/page.tsx.
+Google Cloud credits are provided for this project. #AISprint 
