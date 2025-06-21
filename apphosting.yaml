@@ -7,6 +7,6 @@ runConfig:
   maxInstances: 1
 secrets:
   - key: GEMINI_API_KEY
-    secret: projects/539959005465/secrets/geminiApiKey
+    secret: projects/1091369475808/secrets/geminiApiKey
   - key: GC_PROJECT_ID
     secret: gcProjectId
