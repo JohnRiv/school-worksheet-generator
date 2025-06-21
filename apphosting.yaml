@@ -10,3 +10,5 @@ secrets:
     secret: projects/1091369475808/secrets/geminiApiKey
   - key: GC_PROJECT_ID
     secret: gcProjectId
+  - key: GC_PROJECT_ID_PROJ
+    secret: projects/539959005465/secrets/gcProjectId
