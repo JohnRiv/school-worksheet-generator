@@ -8,3 +8,5 @@ runConfig:
 secrets:
   - key: GEMINI_API_KEY
     secret: projects/539959005465/secrets/geminiApiKey
+  - key: GC_PROJECT_ID
+    secret: gcProjectId
