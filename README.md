@@ -2,6 +2,9 @@
 
 A Next.js web app built entirely with Gemini Firebase Studio to take photos of worksheets from school and generate additional practice problems just like the originals, as well as the answers to those problems.
 
+**View the Demo:** [
+Vibe Coded Web App Demo: School Worksheet Generator](https://youtu.be/yeu2vULRUfY)
+
 To use this with Firebase Hosting, create a `.env` file in the root of the project and add this line:
 
 ```
