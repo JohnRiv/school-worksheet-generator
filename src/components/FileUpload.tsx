@@ -7,7 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label'; // Label is not used, but kept for consistency if added later
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { UploadCloud, Camera, Zap, FileUp, XCircle } from 'lucide-react';
+import { UploadCloud, Camera, Zap, FileUp, XCircle, RefreshCcw } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 
@@ -29,6 +29,8 @@ export function FileUpload({ onFileChange, disabled }: FileUploadProps) {
   const [captureMode, setCaptureMode] = useState<'file' | 'camera'>('file');
   const [hasCameraPermission, setHasCameraPermission] = useState<boolean | null>(null);
   const [stream, setStream] = useState<MediaStream | null>(null);
+  const [devices, setDevices] = useState<MediaDeviceInfo[]>([]);
+  const [selectedDeviceId, setSelectedDeviceId] = useState<string | null>(null);
 
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -61,7 +63,7 @@ export function FileUpload({ onFileChange, disabled }: FileUploadProps) {
       onFileChange(null, null);
     }
   };
-  
+
   const handleDragEnter = (e: DragEvent<HTMLDivElement>) => {
     e.preventDefault();
     e.stopPropagation();
@@ -129,15 +131,52 @@ export function FileUpload({ onFileChange, disabled }: FileUploadProps) {
     }
     setCaptureMode('file'); // Switch back to file mode, useEffect will clean up stream
   };
-  
+
+  const handleSwitchCamera = () => {
+    if (devices.length < 2) return;
+
+    const currentIndex = devices.findIndex(d => d.deviceId === selectedDeviceId);
+    const nextIndex = (currentIndex + 1) % devices.length;
+    setSelectedDeviceId(devices[nextIndex].deviceId);
+  };
+
   useEffect(() => {
     if (captureMode === 'camera' && !disabled) {
       setHasCameraPermission(null); // Reset permission status
-      const getCameraPermission = async () => {
+
+      const getCameraStream = async () => {
         try {
-          const mediaStream = await navigator.mediaDevices.getUserMedia({ video: true });
+          // First, enumerate devices if we haven't already
+          if (devices.length === 0) {
+            const allDevices = await navigator.mediaDevices.enumerateDevices();
+            const videoDevices = allDevices.filter(device => device.kind === 'videoinput');
+            setDevices(videoDevices);
+            if (videoDevices.length > 0 && !selectedDeviceId) {
+              // Default to the first one if none selected, or try to find 'user' facing if possible, 
+              // but usually the default getUserMedia without deviceId picks a good default.
+              // We'll let getUserMedia pick default first, then update selectedDeviceId from the stream track
+            }
+          }
+
+          const constraints: MediaStreamConstraints = {
+            video: selectedDeviceId ? { deviceId: { exact: selectedDeviceId } } : true
+          };
+
+          const mediaStream = await navigator.mediaDevices.getUserMedia(constraints);
           setStream(mediaStream);
           setHasCameraPermission(true);
+
+          // Update selected device ID based on the active track if not set
+          if (!selectedDeviceId) {
+            const videoTrack = mediaStream.getVideoTracks()[0];
+            if (videoTrack) {
+              const settings = videoTrack.getSettings();
+              if (settings.deviceId) {
+                setSelectedDeviceId(settings.deviceId);
+              }
+            }
+          }
+
           if (videoRef.current) {
             videoRef.current.srcObject = mediaStream;
           }
@@ -151,7 +190,8 @@ export function FileUpload({ onFileChange, disabled }: FileUploadProps) {
           });
         }
       };
-      getCameraPermission();
+
+      getCameraStream();
 
       return () => {
         if (stream) {
@@ -163,15 +203,15 @@ export function FileUpload({ onFileChange, disabled }: FileUploadProps) {
         }
       };
     } else if (stream) {
-        // Cleanup if mode changes or component unmounts while stream is active
-        stream.getTracks().forEach(track => track.stop());
-        setStream(null);
-        if (videoRef.current) {
-          videoRef.current.srcObject = null;
-        }
+      // Cleanup if mode changes or component unmounts while stream is active
+      stream.getTracks().forEach(track => track.stop());
+      setStream(null);
+      if (videoRef.current) {
+        videoRef.current.srcObject = null;
+      }
     }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [captureMode, disabled]); // toast is stable, stream is managed internally
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [captureMode, disabled, selectedDeviceId]); // Re-run when selectedDeviceId changes
 
   return (
     <Card className="w-full shadow-lg">
@@ -184,7 +224,7 @@ export function FileUpload({ onFileChange, disabled }: FileUploadProps) {
       <CardContent className="space-y-6">
         {captureMode === 'file' ? (
           <>
-            <div 
+            <div
               className={`relative flex flex-col items-center justify-center w-full p-6 border-2 border-dashed rounded-lg cursor-pointer hover:border-primary transition-colors ${isDragging ? 'border-primary bg-accent/20' : 'border-border'} ${disabled ? 'opacity-50 cursor-not-allowed' : ''}`}
               onDragEnter={handleDragEnter}
               onDragLeave={handleDragLeave}
@@ -211,9 +251,9 @@ export function FileUpload({ onFileChange, disabled }: FileUploadProps) {
               />
             </div>
 
-            <Button 
-              variant="outline" 
-              className="w-full" 
+            <Button
+              variant="outline"
+              className="w-full"
               onClick={handleTakePhotoClick}
               disabled={disabled}
               aria-label="Switch to camera capture"
@@ -225,44 +265,55 @@ export function FileUpload({ onFileChange, disabled }: FileUploadProps) {
         ) : ( // captureMode === 'camera'
           <div className="space-y-4">
             <div className="relative w-full aspect-[4/3] bg-muted rounded-md overflow-hidden">
-              <video 
-                ref={videoRef} 
-                className="w-full h-full object-cover" 
-                autoPlay 
-                muted 
+              <video
+                ref={videoRef}
+                className="w-full h-full object-cover"
+                autoPlay
+                muted
                 playsInline // Important for iOS
               />
               {hasCameraPermission === false && (
-                 <div className="absolute inset-0 flex items-center justify-center p-4">
-                    <Alert variant="destructive" className="w-full">
-                        <XCircle className="h-5 w-5" />
-                        <AlertTitle>Camera Access Denied</AlertTitle>
-                        <AlertDescription>
-                        Please allow camera access in your browser settings and refresh the page.
-                        </AlertDescription>
-                    </Alert>
-                 </div>
+                <div className="absolute inset-0 flex items-center justify-center p-4">
+                  <Alert variant="destructive" className="w-full">
+                    <XCircle className="h-5 w-5" />
+                    <AlertTitle>Camera Access Denied</AlertTitle>
+                    <AlertDescription>
+                      Please allow camera access in your browser settings and refresh the page.
+                    </AlertDescription>
+                  </Alert>
+                </div>
               )}
-               {hasCameraPermission === null && (
+              {hasCameraPermission === null && (
                 <div className="absolute inset-0 flex items-center justify-center">
                   <p className="text-muted-foreground">Initializing camera...</p>
                 </div>
               )}
+              {devices.length > 1 && hasCameraPermission === true && (
+                <Button
+                  variant="secondary"
+                  size="icon"
+                  className="absolute top-2 right-2 rounded-full bg-background/80 hover:bg-background/90"
+                  onClick={handleSwitchCamera}
+                  aria-label="Switch Camera"
+                >
+                  <RefreshCcw className="h-4 w-4" />
+                </Button>
+              )}
             </div>
             <canvas ref={canvasRef} style={{ display: 'none' }} />
-            
-            <Button 
-              onClick={handleCaptureImage} 
-              className="w-full" 
+
+            <Button
+              onClick={handleCaptureImage}
+              className="w-full"
               disabled={disabled || hasCameraPermission !== true}
               aria-label="Snap photo from camera"
             >
               <Zap className="mr-2 h-5 w-5" />
               Snap Photo
             </Button>
-            <Button 
-              variant="outline" 
-              onClick={handleSwitchToFileUpload} 
+            <Button
+              variant="outline"
+              onClick={handleSwitchToFileUpload}
               className="w-full"
               disabled={disabled}
               aria-label="Switch to file upload"
@@ -276,18 +327,18 @@ export function FileUpload({ onFileChange, disabled }: FileUploadProps) {
         {preview && captureMode === 'file' && (
           <div className="mt-4 p-4 border rounded-lg bg-muted/30">
             <p className="text-sm font-medium text-foreground mb-2">Selected Image Preview:</p>
-            <Image 
-              src={preview} 
+            <Image
+              src={preview}
               alt={fileName || "Preview"}
-              width={400} 
-              height={300} 
+              width={400}
+              height={300}
               className="rounded-md object-contain max-h-60 w-auto mx-auto shadow-sm"
               data-ai-hint="worksheet preview"
             />
             {fileName && <p className="text-xs text-muted-foreground mt-2 text-center">{fileName}</p>}
           </div>
         )}
-         {fileName && !preview && captureMode === 'file' && ( // For non-image files like PDF
+        {fileName && !preview && captureMode === 'file' && ( // For non-image files like PDF
           <div className="mt-4 p-4 border rounded-lg bg-muted/30 text-center">
             <FileUp className="w-12 h-12 mx-auto mb-2 text-muted-foreground" />
             <p className="text-sm font-medium text-foreground mb-1">Selected File:</p>
