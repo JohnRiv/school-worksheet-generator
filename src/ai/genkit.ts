@@ -1,15 +1,11 @@
 import { genkit } from 'genkit';
-import { googleAI } from '@genkit-ai/googleai';
-
-let genkitInitObj = {};
-
-if (process.env.GEMINI_API_KEY) {
-  genkitInitObj = {
-    apiKey: process.env.GEMINI_API_KEY
-  };
-}
+import { googleAI } from '@genkit-ai/google-genai';
 
 export const ai = genkit({
-  plugins: [googleAI(genkitInitObj)],
-  model: 'googleai/gemini-3-flash-preview',
+  plugins: [
+    googleAI({
+      apiKey: process.env.GEMINI_API_KEY,
+    }),
+  ],
+  model: googleAI.model('gemini-3-flash-preview'),
 });
