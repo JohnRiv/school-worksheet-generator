@@ -1,6 +1,6 @@
 {
   "apphosting": {
-    "backendId": "school-worksheet-generator",
+    "backendId": "studio",
     "rootDir": "./"
   }
 }
