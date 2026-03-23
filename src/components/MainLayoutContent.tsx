@@ -12,7 +12,7 @@ export default function MainLayoutContent({ children }: { children: ReactNode })
         {children}
       </main>
       <footer className="text-center py-4 text-sm text-muted-foreground">
-        <p>Made with Google Gemini and Antigravity by JohnRiv | Project ID: {process.env.GC_PROJECT_ID} / {process.env.GC_PROJECT_ID_PROJ}</p>
+        <p>Made with Google Gemini and Antigravity by JohnRiv</p>
       </footer>
       <LoadingOverlay />
     </>
