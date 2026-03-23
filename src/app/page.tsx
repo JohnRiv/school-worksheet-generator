@@ -20,7 +20,8 @@ export default function HomePage() {
     setWorksheetAnalysis, 
     setIsLoading, 
     setLoadingMessage,
-    setError 
+    setError,
+    accessCode
   } = useAppContext();
   
   const [currentFile, setCurrentFile] = useState<File | null>(null);
@@ -52,7 +53,7 @@ export default function HomePage() {
     setError(null);
 
     try {
-      const result = await handleAnalyzeWorksheet(currentDataUri, removeHandwriting);
+      const result = await handleAnalyzeWorksheet(currentDataUri, removeHandwriting, accessCode);
 
       if (result.success && result.data) {
         setWorksheetAnalysis(result.data);

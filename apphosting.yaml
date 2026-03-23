@@ -8,3 +8,5 @@ runConfig:
 env:
   - variable: GEMINI_API_KEY
     secret: geminiApiKey
+  - variable: APP_SECRET_PASSPHRASE
+    secret: appSecretPassphrase

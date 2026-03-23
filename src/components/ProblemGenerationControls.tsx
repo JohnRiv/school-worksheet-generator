@@ -17,7 +17,8 @@ export function ProblemGenerationControls() {
     setGeneratedProblems, 
     setIsLoading, 
     setLoadingMessage, 
-    setError 
+    setError,
+    accessCode
   } = useAppContext();
   const { toast } = useToast();
 
@@ -44,12 +45,12 @@ export function ProblemGenerationControls() {
       const worksheetAnalysisJson = JSON.stringify(worksheetAnalysis);
       let result;
       if (isCustom) {
-        result = await handleCustomizeProblems(worksheetAnalysisJson, customPrompt, numProblems);
+        result = await handleCustomizeProblems(worksheetAnalysisJson, customPrompt, numProblems, accessCode);
       } else {
-        result = await handleGenerateProblems(worksheetAnalysisJson, numProblems);
+        result = await handleGenerateProblems(worksheetAnalysisJson, numProblems, accessCode);
       }
 
-      if (result.success && result.data) {
+      if (result.success && 'data' in result) {
         // Cast the result data to GeneratedProblemsState
         setGeneratedProblems(result.data as GeneratedProblemsState); 
         toast({
@@ -57,7 +58,7 @@ export function ProblemGenerationControls() {
           description: `${numProblems} practice problems have been successfully generated.`,
         });
       } else {
-        throw new Error(result.error || "Failed to generate problems.");
+        throw new Error(('error' in result ? result.error : "Failed to generate problems.") as string);
       }
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : "An unknown error occurred.";

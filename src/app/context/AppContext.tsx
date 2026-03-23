@@ -30,6 +30,8 @@ interface AppState {
   setLoadingMessage: (message: string) => void;
   error: string | null;
   setError: (error: string | null) => void;
+  accessCode: string;
+  setAccessCode: (code: string) => void;
 }
 
 const AppContext = React.createContext<AppState | undefined>(undefined);
@@ -41,6 +43,7 @@ export const AppContextProvider: React.FC<{ children: React.ReactNode }> = ({ ch
   const [isLoading, setIsLoading] = React.useState<boolean>(false);
   const [loadingMessage, setLoadingMessage] = React.useState<string>('');
   const [error, setError] = React.useState<string | null>(null);
+  const [accessCode, setAccessCode] = React.useState<string>('');
 
   return (
     <AppContext.Provider value={{
@@ -49,7 +52,8 @@ export const AppContextProvider: React.FC<{ children: React.ReactNode }> = ({ ch
       generatedProblems, setGeneratedProblems,
       isLoading, setIsLoading,
       loadingMessage, setLoadingMessage,
-      error, setError
+      error, setError,
+      accessCode, setAccessCode
     }}>
       {children}
     </AppContext.Provider>

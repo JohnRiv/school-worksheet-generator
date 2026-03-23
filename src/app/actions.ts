@@ -3,8 +3,21 @@
 import { analyzeWorksheet as analyzeWorksheetFlow, type AnalyzeWorksheetInput } from '@/ai/flows/analyze-worksheet';
 import { generatePracticeProblems as generatePracticeProblemsFlow, type GeneratePracticeProblemsInput, type GeneratePracticeProblemsOutput } from '@/ai/flows/generate-practice-problems';
 // Removed the import for customizeProblemGenerationFlow as it will no longer be a separate flow
-export async function handleAnalyzeWorksheet(photoDataUri: string, removeHandwriting: boolean) {
+
+function checkAccess(accessCode?: string) {
+  const secret = process.env.APP_SECRET_PASSPHRASE;
+  if (secret) {
+    if (accessCode !== secret) {
+      throw new Error("Invalid access code. Please enter the correct access code to use the AI functionality.");
+    }
+  } else {
+    throw new Error("Access code not configured. Please contact the administrator.");
+  }
+}
+
+export async function handleAnalyzeWorksheet(photoDataUri: string, removeHandwriting: boolean, accessCode?: string) {
   try {
+    checkAccess(accessCode);
     const input: AnalyzeWorksheetInput = { photoDataUri, removeHandwriting };
     const result = await analyzeWorksheetFlow(input);
     return { success: true, data: result };
@@ -15,8 +28,9 @@ export async function handleAnalyzeWorksheet(photoDataUri: string, removeHandwri
 }
 
 // Internal helper function for problem generation
-async function generateProblemsInternal(worksheetAnalysisJson: string, numberOfProblems: number): Promise<{ success: true; data: GeneratePracticeProblemsOutput } | { success: false; error: string }> {
+async function generateProblemsInternal(worksheetAnalysisJson: string, numberOfProblems: number, accessCode?: string): Promise<{ success: true; data: GeneratePracticeProblemsOutput } | { success: false; error: string }> {
   try {
+    checkAccess(accessCode);
     const input: GeneratePracticeProblemsInput = { 
       worksheetAnalysis: worksheetAnalysisJson, 
       numberOfProblems 
@@ -29,11 +43,11 @@ async function generateProblemsInternal(worksheetAnalysisJson: string, numberOfP
     return { success: false, error: error instanceof Error ? error.message : "An unknown error occurred during problem generation." };
   }
 }
-export async function handleGenerateProblems(worksheetAnalysisJson: string, numberOfProblems: number) {
+export async function handleGenerateProblems(worksheetAnalysisJson: string, numberOfProblems: number, accessCode?: string) {
   // Directly call the internal helper function
- return generateProblemsInternal(worksheetAnalysisJson, numberOfProblems);
+ return generateProblemsInternal(worksheetAnalysisJson, numberOfProblems, accessCode);
 }
-export async function handleCustomizeProblems(worksheetAnalysisJson: string, userPrompt: string, numberOfProblems: number) {
+export async function handleCustomizeProblems(worksheetAnalysisJson: string, userPrompt: string, numberOfProblems: number, accessCode?: string) {
   try {
     const worksheetAnalysis = JSON.parse(worksheetAnalysisJson);
     // Append the user prompt to additional_notes_for_generation
@@ -44,7 +58,7 @@ export async function handleCustomizeProblems(worksheetAnalysisJson: string, use
     }
     const modifiedWorksheetAnalysisJson = JSON.stringify(worksheetAnalysis);
     // Call the internal helper function with the modified analysis
-    const result = await generateProblemsInternal(modifiedWorksheetAnalysisJson, numberOfProblems);
+    const result = await generateProblemsInternal(modifiedWorksheetAnalysisJson, numberOfProblems, accessCode);
     // The internal function already returns the correct success/error format
     return result;
   } catch (error) {
