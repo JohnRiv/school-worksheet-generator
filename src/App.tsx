@@ -38,11 +38,17 @@ function WorksheetAppContent() {
     aiClient,
   } = useAppContext()
 
-  const [removeHandwriting, setRemoveHandwriting] = useState(false)
+  const [removeHandwriting, setRemoveHandwriting] = useState(true)
 
   const onFileSelected = (file: File | null, dataUri: string | null) => {
     setUploadedFile(file)
     setUploadedImage(dataUri)
+  }
+
+  const handleBackToUpload = () => {
+    setUploadedFile(null)
+    setUploadedImage(null)
+    setCurrentView('upload')
   }
 
   const analyzeWorksheet = async () => {
@@ -63,6 +69,9 @@ function WorksheetAppContent() {
       const analysis = await aiClient.analyzeWorksheet(uploadedFile, removeHandwriting)
       setWorksheetAnalysis(analysis)
       setGeneratedProblems(null)
+      // Purge raw image blob and data URI from memory once structured analysis is complete
+      setUploadedFile(null)
+      setUploadedImage(null)
       toast({
         title: 'Analysis Complete',
         description: 'Worksheet analyzed locally with Chrome Prompt API.',
@@ -133,7 +142,7 @@ function WorksheetAppContent() {
           <Button
             id="back-to-upload-btn"
             variant="outline"
-            onClick={() => setCurrentView('upload')}
+            onClick={handleBackToUpload}
             className="mb-2"
           >
             <ArrowLeft className="mr-2 h-4 w-4" /> Back to Upload

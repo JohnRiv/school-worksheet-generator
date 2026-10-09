@@ -4,7 +4,8 @@ import { describe, expect, it, vi, beforeEach } from 'vitest'
 import { fireEvent, render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import App from '@/App'
-import { MAX_FILE_SIZE_BYTES } from '@/components/FileUpload'
+import { MAX_FILE_SIZE_BYTES, stripImageMetadata } from '@/components/FileUpload'
+import { setupTransientWorkerEnvironment } from '@/ai/worksheet.worker'
 import type { AIClientInterface } from '@/context/AppContext'
 import type { GeneratedProblemsResult, WorksheetAnalysis } from '@/ai/schemas'
 
@@ -180,5 +181,54 @@ describe('School Worksheet Generator UI Flow (src/components/__tests__/App.test.
       expect(screen.getByText('File Too Large')).toBeInTheDocument()
     })
     expect(screen.getByRole('button', { name: /analyze worksheet/i })).toBeDisabled()
+  })
+
+  it('strips JPEG APP1 EXIF/GPS metadata segments from uploaded files via stripImageMetadata', async () => {
+    // Construct a synthetic JPEG with SOI (FF D8), APP1 EXIF segment (FF E1), APP0 JFIF segment (FF E0), and EOI (FF D9)
+    const exifPayload = new TextEncoder().encode('Exif\0\0GPS-Coordinates:37.42,-122.08')
+    const app1Len = exifPayload.length + 2
+    const jfifPayload = new TextEncoder().encode('JFIF\0')
+    const app0Len = jfifPayload.length + 2
+
+    const jpegBytes = new Uint8Array([
+      0xff,
+      0xd8, // SOI
+      0xff,
+      0xe1,
+      (app1Len >> 8) & 0xff,
+      app1Len & 0xff,
+      ...exifPayload, // APP1 (EXIF/GPS)
+      0xff,
+      0xe0,
+      (app0Len >> 8) & 0xff,
+      app0Len & 0xff,
+      ...jfifPayload, // APP0 (JFIF)
+      0xff,
+      0xd9, // EOI
+    ])
+
+    let binary = ''
+    for (const b of jpegBytes) binary += String.fromCharCode(b)
+    const rawDataUri = `data:image/jpeg;base64,${btoa(binary)}`
+    const rawFile = new File([jpegBytes], 'student photo (1).jpg', { type: 'image/jpeg' })
+
+    const { cleanFile, cleanDataUri } = await stripImageMetadata(rawFile, rawDataUri)
+    const cleanBase64 = cleanDataUri.split(',')[1]
+    const cleanBinary = atob(cleanBase64)
+
+    expect(cleanBinary).not.toContain('Exif')
+    expect(cleanBinary).not.toContain('GPS-Coordinates')
+    expect(cleanBinary).toContain('JFIF')
+    expect(cleanFile.name).toBe('student_photo__1_.jpg')
+  })
+
+  it('disables IndexedDB and attaches a transient exporter-free tracer in setupTransientWorkerEnvironment', () => {
+    const mockScope: Record<string, unknown> = { indexedDB: { open: vi.fn() } }
+    const cbManager = setupTransientWorkerEnvironment(mockScope)
+
+    expect(mockScope.indexedDB).toBeUndefined()
+    expect(cbManager.tracer).toBeDefined()
+    expect(cbManager.tracer?.name).toBe('TransientWorksheetTracer')
+    expect((cbManager.tracer as any).exporters).toEqual([])
   })
 })

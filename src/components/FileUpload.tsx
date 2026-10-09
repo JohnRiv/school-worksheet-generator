@@ -26,20 +26,137 @@ function dataUriToImageFile(dataUri: string, filename: string): File {
   return new File([bytes], filename, { type: mimeType })
 }
 
+/**
+ * Strips JPEG APP1–APP15 segments (which contain EXIF, GPS, XMP, and camera maker notes)
+ * directly from the binary buffer while preserving SOI, APP0 (JFIF), DQT, DHT, SOF, SOS, and image scan data.
+ */
+function stripJpegMetadataBytes(bytes: Uint8Array): Uint8Array {
+  if (bytes.length < 4 || bytes[0] !== 0xff || bytes[1] !== 0xd8) {
+    return bytes
+  }
+
+  const chunks: Uint8Array[] = [bytes.subarray(0, 2)] // SOI marker (0xFFD8)
+  let offset = 2
+
+  while (offset + 1 < bytes.length) {
+    if (bytes[offset] !== 0xff) {
+      chunks.push(bytes.subarray(offset))
+      break
+    }
+
+    const marker = bytes[offset + 1]
+
+    // SOS (Start of Scan, 0xDA) or EOI (End of Image, 0xD9): copy the rest of the stream verbatim
+    if (marker === 0xda || marker === 0xd9) {
+      chunks.push(bytes.subarray(offset))
+      break
+    }
+
+    // Standalone markers without length payload
+    if (marker === 0x01 || (marker >= 0xd0 && marker <= 0xd7)) {
+      chunks.push(bytes.subarray(offset, offset + 2))
+      offset += 2
+      continue
+    }
+
+    if (offset + 3 >= bytes.length) {
+      chunks.push(bytes.subarray(offset))
+      break
+    }
+
+    const segmentLength = (bytes[offset + 2] << 8) | bytes[offset + 3]
+    if (segmentLength < 2 || offset + 2 + segmentLength > bytes.length) {
+      chunks.push(bytes.subarray(offset))
+      break
+    }
+
+    // Drop APP1..APP15 (0xE1..0xEF) and COM (0xFE) comments which hold EXIF, GPS, XMP, and ICC/device tags
+    const isPrivateMetadataSegment = (marker >= 0xe1 && marker <= 0xef) || marker === 0xfe
+    if (!isPrivateMetadataSegment) {
+      chunks.push(bytes.subarray(offset, offset + 2 + segmentLength))
+    }
+
+    offset += 2 + segmentLength
+  }
+
+  const totalLength = chunks.reduce((acc, c) => acc + c.length, 0)
+  const sanitized = new Uint8Array(totalLength)
+  let writePos = 0
+  for (const chunk of chunks) {
+    sanitized.set(chunk, writePos)
+    writePos += chunk.length
+  }
+  return sanitized
+}
+
+function uint8ArrayToBase64(bytes: Uint8Array): string {
+  let binary = ''
+  const chunkSize = 0x8000
+  for (let i = 0; i < bytes.length; i += chunkSize) {
+    const slice = bytes.subarray(i, i + chunkSize)
+    binary += String.fromCharCode(...slice)
+  }
+  return btoa(binary)
+}
+
+/**
+ * Strips embedded EXIF, GPS location, XMP, and comment metadata from an image File
+ * and normalizes its filename so personal device metadata is not retained in memory.
+ */
+export async function stripImageMetadata(
+  file: File,
+  rawDataUri: string
+): Promise<{ cleanFile: File; cleanDataUri: string }> {
+  try {
+    const [header, base64Data] = rawDataUri.split(',')
+    if (!base64Data) {
+      return { cleanFile: file, cleanDataUri: rawDataUri }
+    }
+    const mimeMatch = header?.match(/data:([^;]+)/)
+    const mimeType = mimeMatch?.[1] || file.type || 'image/jpeg'
+    const binaryString = atob(base64Data)
+    let bytes: Uint8Array = new Uint8Array(binaryString.length)
+    for (let i = 0; i < binaryString.length; i++) {
+      bytes[i] = binaryString.charCodeAt(i)
+    }
+
+    if (mimeType === 'image/jpeg' || (bytes[0] === 0xff && bytes[1] === 0xd8)) {
+      bytes = stripJpegMetadataBytes(bytes)
+    }
+
+    const sanitizedName = file.name.replace(/[^\w.-]/g, '_') || 'worksheet.jpg'
+    const cleanDataUri = `data:${mimeType};base64,${uint8ArrayToBase64(bytes)}`
+    const cleanFile = new File([bytes as BlobPart], sanitizedName, { type: mimeType })
+    return { cleanFile, cleanDataUri }
+  } catch {
+    return { cleanFile: file, cleanDataUri: rawDataUri }
+  }
+}
+
 export function FileUpload({ onFileChange, disabled }: FileUploadProps) {
   const [preview, setPreview] = useState<string | null>(null)
   const [fileName, setFileName] = useState<string | null>(null)
   const [isDragging, setIsDragging] = useState(false)
   const [captureMode, setCaptureMode] = useState<'file' | 'camera'>('file')
   const [hasCameraPermission, setHasCameraPermission] = useState<boolean | null>(null)
-  const [stream, setStream] = useState<MediaStream | null>(null)
   const [devices, setDevices] = useState<MediaDeviceInfo[]>([])
   const [selectedDeviceId, setSelectedDeviceId] = useState<string | null>(null)
   const [isLoadingSample, setIsLoadingSample] = useState(false)
 
+  const streamRef = useRef<MediaStream | null>(null)
   const videoRef = useRef<HTMLVideoElement>(null)
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const { toast } = useToast()
+
+  const stopActiveCameraStream = () => {
+    if (streamRef.current) {
+      streamRef.current.getTracks().forEach((track) => track.stop())
+      streamRef.current = null
+    }
+    if (videoRef.current) {
+      videoRef.current.srcObject = null
+    }
+  }
 
   const processFile = (file: File) => {
     if (!ALLOWED_IMAGE_MIME_TYPES.includes(file.type as (typeof ALLOWED_IMAGE_MIME_TYPES)[number])) {
@@ -68,10 +185,11 @@ export function FileUpload({ onFileChange, disabled }: FileUploadProps) {
 
     setFileName(file.name)
     const reader = new FileReader()
-    reader.onloadend = () => {
-      const dataUri = reader.result as string
-      setPreview(dataUri)
-      onFileChange(file, dataUri)
+    reader.onloadend = async () => {
+      const rawDataUri = reader.result as string
+      const { cleanFile, cleanDataUri } = await stripImageMetadata(file, rawDataUri)
+      setPreview(cleanDataUri)
+      onFileChange(cleanFile, cleanDataUri)
     }
     reader.readAsDataURL(file)
   }
@@ -148,6 +266,7 @@ export function FileUpload({ onFileChange, disabled }: FileUploadProps) {
   }
 
   const handleSwitchToFileUpload = () => {
+    stopActiveCameraStream()
     setCaptureMode('file')
   }
 
@@ -176,6 +295,7 @@ export function FileUpload({ onFileChange, disabled }: FileUploadProps) {
         })
       }
     }
+    stopActiveCameraStream()
     setCaptureMode('file')
   }
 
@@ -187,6 +307,8 @@ export function FileUpload({ onFileChange, disabled }: FileUploadProps) {
   }
 
   useEffect(() => {
+    let cancelled = false
+
     if (captureMode === 'camera' && !disabled) {
       setHasCameraPermission(null)
 
@@ -194,6 +316,7 @@ export function FileUpload({ onFileChange, disabled }: FileUploadProps) {
         try {
           if (devices.length === 0 && navigator.mediaDevices?.enumerateDevices) {
             const allDevices = await navigator.mediaDevices.enumerateDevices()
+            if (cancelled) return
             const videoDevices = allDevices.filter((device) => device.kind === 'videoinput')
             setDevices(videoDevices)
           }
@@ -203,7 +326,13 @@ export function FileUpload({ onFileChange, disabled }: FileUploadProps) {
           }
 
           const mediaStream = await navigator.mediaDevices.getUserMedia(constraints)
-          setStream(mediaStream)
+          if (cancelled) {
+            mediaStream.getTracks().forEach((track) => track.stop())
+            return
+          }
+
+          stopActiveCameraStream()
+          streamRef.current = mediaStream
           setHasCameraPermission(true)
 
           if (!selectedDeviceId) {
@@ -220,6 +349,7 @@ export function FileUpload({ onFileChange, disabled }: FileUploadProps) {
             videoRef.current.srcObject = mediaStream
           }
         } catch (error) {
+          if (cancelled) return
           console.error('Error accessing camera:', error)
           setHasCameraPermission(false)
           toast({
@@ -233,20 +363,11 @@ export function FileUpload({ onFileChange, disabled }: FileUploadProps) {
       void getCameraStream()
 
       return () => {
-        if (stream) {
-          stream.getTracks().forEach((track) => track.stop())
-          setStream(null)
-        }
-        if (videoRef.current) {
-          videoRef.current.srcObject = null
-        }
+        cancelled = true
+        stopActiveCameraStream()
       }
-    } else if (stream) {
-      stream.getTracks().forEach((track) => track.stop())
-      setStream(null)
-      if (videoRef.current) {
-        videoRef.current.srcObject = null
-      }
+    } else {
+      stopActiveCameraStream()
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [captureMode, disabled, selectedDeviceId])

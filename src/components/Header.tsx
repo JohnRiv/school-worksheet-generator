@@ -3,7 +3,13 @@ import { useAppContext } from '@/context/AppContext'
 import { Badge } from '@/components/ui/badge'
 
 export function Header() {
-  const { setCurrentView, aiAvailability } = useAppContext()
+  const { setCurrentView, setUploadedFile, setUploadedImage, aiAvailability } = useAppContext()
+
+  const handleReturnToUpload = () => {
+    setUploadedFile(null)
+    setUploadedImage(null)
+    setCurrentView('upload')
+  }
 
   const renderAvailabilityBadge = () => {
     if (aiAvailability === 'readily') {
@@ -61,7 +67,7 @@ export function Header() {
       <div className="container mx-auto px-4 py-4 max-w-5xl flex justify-between items-center gap-4">
         <button
           type="button"
-          onClick={() => setCurrentView('upload')}
+          onClick={handleReturnToUpload}
           className="flex items-center gap-2 text-left hover:opacity-90 transition-opacity focus:outline-none focus-visible:ring-2 focus-visible:ring-ring rounded-md"
         >
           <BookOpenCheck className="h-8 w-8 shrink-0" />

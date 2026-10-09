@@ -15,10 +15,22 @@ const PROMPT_INJECTION_PATTERNS: RegExp[] = [
   /<\/?user_customization_notes>/gi,
 ]
 
+const PII_HEADER_PATTERNS: Array<{ pattern: RegExp; replacement: string }> = [
+  {
+    pattern:
+      /\b(?:student\s+name|name|teacher|instructor|school|class|period|student\s+id)\s*:\s*(?:(?:mr|mrs|ms|dr|prof)\.\s*)?[^\n,;.]+/gi,
+    replacement: '[redacted]',
+  },
+  {
+    pattern: /\b[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}\b/gi,
+    replacement: '[redacted]',
+  },
+]
+
 /**
  * Sanitizes user-supplied or OCR-extracted strings per spec:
  * 1. Validates string input & strips control characters.
- * 2. Neutralizes known prompt-injection override phrases and delimiter tags.
+ * 2. Neutralizes known prompt-injection override phrases, delimiter tags, and PII headers.
  * 3. Escapes code-fence delimiters and double quotes, and truncates to maxLength.
  */
 export function sanitizeCustomPrompt(
@@ -38,6 +50,10 @@ export function sanitizeCustomPrompt(
     sanitized = sanitized.replace(pattern, '[filtered]')
   }
 
+  for (const { pattern, replacement } of PII_HEADER_PATTERNS) {
+    sanitized = sanitized.replace(pattern, replacement)
+  }
+
   // Prevent breaking out of markdown code blocks or quoted strings
   sanitized = sanitized.replace(/```/g, "'''").replace(/"/g, "'")
 
@@ -50,7 +66,7 @@ export function sanitizeCustomPrompt(
 
 /**
  * Sanitizes and bounds all fields of a WorksheetAnalysis object to mitigate
- * indirect prompt injection from text embedded in uploaded worksheet images.
+ * indirect prompt injection and PII leakage from text embedded in uploaded worksheet images.
  */
 export function sanitizeWorksheetAnalysis(analysis: WorksheetAnalysis): WorksheetAnalysis {
   const rawConcepts = Array.isArray(analysis.identified_concepts)
@@ -98,10 +114,14 @@ export function buildAnalyzeWorksheetPrompt(removeHandwriting: boolean): string 
     ? 'IMPORTANT: This worksheet contains student handwriting, written answers, or marks. Ignore and exclude any handwritten answers or marks and analyze only the original printed worksheet questions and directions.'
     : 'Analyze the printed questions, concepts, and directions visible on this worksheet.'
 
+  const privacyInstruction =
+    'PRIVACY REQUIREMENT: Never extract, transcribe, or include any personally identifiable information (PII) such as student names, teacher names, school names, class periods, dates, grades, or student IDs.'
+
   return `You are an expert educational AI assistant that analyzes photos of school worksheets.
 Your goal is to extract structured information from the attached worksheet image so that new practice problems can be generated.
 
 ${handwritingInstruction}
+${privacyInstruction}
 
 Carefully inspect the worksheet image and output a JSON object strictly matching the following structure:
 {

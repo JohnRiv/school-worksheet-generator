@@ -197,10 +197,25 @@ declare module '@gilfink/prompt-chain' {
     logToMain: (msg: string) => void
   }
 
+  export class Tracer {
+    name: string
+    constructor(name?: string)
+    addExporter(exporter: any): this
+  }
+
+  export class CallbackManager {
+    tracer: Tracer | null
+    constructor(handlers?: Record<string, (payload: any) => void>)
+    attachTracer(tracer: Tracer | null): this
+    addHandler(event: string, handler: (payload: any) => void): void
+    removeHandler(event: string, handler: (payload: any) => void): void
+    dispatch(event: string, payload?: Record<string, unknown>): void
+  }
+
   export function createAgentWorker(
     runnableOrTools: Runnable<AgentWorkerInvocationState, any> | any[],
     skills?: any[],
-    callbackManager?: any,
+    callbackManager?: CallbackManager | null,
     options?: Record<string, unknown>
   ): void
 

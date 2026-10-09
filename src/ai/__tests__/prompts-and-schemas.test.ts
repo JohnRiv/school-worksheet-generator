@@ -68,12 +68,40 @@ describe('Prompt Builders & Sanitization (src/ai/prompts.ts)', () => {
     expect(sanitized.additional_notes_for_generation).toContain('[filtered]')
   })
 
-  it('includes handwriting exclusion instructions only when removeHandwriting is true', () => {
+  it('redacts student/teacher/school PII headers and email addresses in sanitizeWorksheetAnalysis', () => {
+    const analysisWithPII: WorksheetAnalysis = {
+      identified_concepts: [
+        {
+          subject: 'Math',
+          main_topic: 'Fractions',
+          specific_concept: 'Simplifying fractions',
+        },
+      ],
+      identified_question_formats: ['Simplify the fraction'],
+      example_questions: ['Student Name: Jane Doe', 'a. 4/8 ='],
+      answer_bank_present: false,
+      worksheet_directions:
+        'Name: John Smith, Teacher: Mrs. Robinson, School: Lincoln Elementary. Contact: teacher@lincoln.edu. Simplify each fraction.',
+      additional_notes_for_generation: '',
+    }
+
+    const sanitized = sanitizeWorksheetAnalysis(analysisWithPII)
+    expect(sanitized.example_questions[0]).toBe('[redacted]')
+    expect(sanitized.worksheet_directions).not.toContain('John Smith')
+    expect(sanitized.worksheet_directions).not.toContain('Mrs. Robinson')
+    expect(sanitized.worksheet_directions).not.toContain('Lincoln Elementary')
+    expect(sanitized.worksheet_directions).not.toContain('teacher@lincoln.edu')
+    expect(sanitized.worksheet_directions).toContain('Simplify each fraction.')
+  })
+
+  it('includes handwriting exclusion instructions when removeHandwriting is true and always includes PII exclusion rules', () => {
     const promptWithoutRemoval = buildAnalyzeWorksheetPrompt(false)
     const promptWithRemoval = buildAnalyzeWorksheetPrompt(true)
 
     expect(promptWithoutRemoval).not.toContain('Ignore and exclude any handwritten answers')
     expect(promptWithRemoval).toContain('Ignore and exclude any handwritten answers')
+    expect(promptWithoutRemoval).toContain('PRIVACY REQUIREMENT: Never extract, transcribe, or include any personally identifiable information (PII)')
+    expect(promptWithRemoval).toContain('PRIVACY REQUIREMENT: Never extract, transcribe, or include any personally identifiable information (PII)')
   })
 
   it('builds a generation prompt incorporating concepts, formats, and delimited custom notes', () => {
