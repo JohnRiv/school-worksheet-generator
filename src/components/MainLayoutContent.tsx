@@ -1,8 +1,6 @@
-"use client";
-
-import React, { ReactNode } from 'react';
-import { Header } from '@/components/Header';
-import { LoadingOverlay } from '@/components/LoadingOverlay';
+import React, { type ReactNode } from 'react'
+import { Header } from '@/components/Header'
+import { LoadingOverlay } from '@/components/LoadingOverlay'
 
 export default function MainLayoutContent({ children }: { children: ReactNode }) {
   return (
@@ -12,9 +10,9 @@ export default function MainLayoutContent({ children }: { children: ReactNode })
         {children}
       </main>
       <footer className="text-center py-4 text-sm text-muted-foreground">
-        <p>Made with Google Gemini and Antigravity by JohnRiv</p>
+        <p>Powered by Chrome Built-in AI (Prompt API) &amp; @gilfink/prompt-chain</p>
       </footer>
       <LoadingOverlay />
     </>
-  );
+  )
 }

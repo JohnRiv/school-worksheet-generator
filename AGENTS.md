@@ -2,45 +2,38 @@
 
 ## Project Overview
 
-**School Worksheet Generator** is a Next.js web application built with Gemini Firebase Studio. It captures photos of school worksheets, generates additional practice problems and their answers, and can be deployed to Firebase Hosting. The project uses Genkit for AI integration, Tailwind CSS for styling, and Radix UI components.
+**School Worksheet Generator** is a React + TypeScript single-page web application served via Vite. It captures or uploads photos of school worksheets, analyzes them locally in Chrome using the built-in **Prompt API** (`window.LanguageModel`) and `@gilfink/prompt-chain`, and generates additional practice problems and answers.
 
 ## Setup Commands
 
 ```bash
 # Install dependencies
 npm install
-# or using pnpm if preferred
-pnpm install
 ```
 
 ## Development Commands
 
 ```bash
-# Start the development server (TurboPack enabled)
+# Start the local Vite development server on port 9002
 npm run dev
-# or
-pnpm dev
 ```
 
-## Build & Deploy
+## Build & Preview
 
 ```bash
-# Build the production bundle
+# Type-check and build the production bundle into dist/
 npm run build
-# or
-pnpm build
 
-# Start the production server
-npm start
-# or
-pnpm start
+# Preview the production bundle locally
+npm run preview
 ```
 
 ## Testing Commands
 
 ```bash
-# Run linting
-npm run lint
+# Run Vitest unit & component tests
+npm test
+
 # Run TypeScript type checking
 npm run typecheck
 ```
@@ -48,18 +41,6 @@ npm run typecheck
 ## Code Style Guidelines
 
 - **TypeScript**: strict mode enabled.
-- **Formatting**: Prefer single quotes, no semicolons, and use Prettier (if configured).
+- **Formatting**: Prefer single quotes, no semicolons.
 - **Component Library**: Use Radix UI components and Tailwind CSS utilities.
-- **AI Integration**: Follow Genkit patterns for prompts and tool usage.
-
-## Security Considerations
-
-- Store the Gemini API key in a `.env` file at the project root (`GEMINI_API_KEY`).
-- Do not commit `.env` or any secret keys to version control.
-- Review Firebase security rules before deploying.
-
-## Additional Resources
-
-- [Genkit Documentation](https://github.com/google/genkit)
-- [Next.js Documentation](https://nextjs.org/docs)
-- [Tailwind CSS Documentation](https://tailwindcss.com/docs)
+- **AI Integration**: Use `@gilfink/prompt-chain` (`PromptChainHost`, `createAgentWorker`, `RunnableSequence`, `StructuredOutputRunnable`, `WorksheetChromeAIPlugin`) with Chrome's `window.LanguageModel` Prompt API.

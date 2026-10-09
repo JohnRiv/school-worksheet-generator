@@ -1,103 +1,118 @@
-
-"use client";
-
-import { useState } from 'react';
-import { useAppContext, type GeneratedProblemsState } from '@/app/context/AppContext'; // Import GeneratedProblemsState
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Textarea } from '@/components/ui/textarea';
-import { useToast } from '@/hooks/use-toast';
-import { handleGenerateProblems, handleCustomizeProblems } from '@/app/actions';
-import { RefreshCw, Edit3, WandSparkles } from 'lucide-react';
+import { useState } from 'react'
+import { useAppContext } from '@/context/AppContext'
+import { sanitizeCustomPrompt } from '@/ai/prompts'
+import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
+import { Label } from '@/components/ui/label'
+import { Textarea } from '@/components/ui/textarea'
+import { useToast } from '@/hooks/use-toast'
+import { RefreshCw, Edit3, WandSparkles } from 'lucide-react'
 
 export function ProblemGenerationControls() {
-  const { 
-    worksheetAnalysis, 
-    setGeneratedProblems, 
-    setIsLoading, 
-    setLoadingMessage, 
+  const {
+    worksheetAnalysis,
+    setWorksheetAnalysis,
+    setGeneratedProblems,
+    setIsLoading,
+    setLoadingMessage,
     setError,
-    accessCode
-  } = useAppContext();
-  const { toast } = useToast();
+    aiClient,
+  } = useAppContext()
+  const { toast } = useToast()
 
-  const [numProblems, setNumProblems] = useState(5);
-  const [customPrompt, setCustomPrompt] = useState('');
+  const [numProblems, setNumProblems] = useState(5)
+  const [customPrompt, setCustomPrompt] = useState('')
 
   const onGenerateProblems = async (isCustom: boolean) => {
     if (!worksheetAnalysis) {
-      toast({ title: "Error", description: "Worksheet analysis not available.", variant: "destructive" });
-      return;
+      toast({
+        title: 'Error',
+        description: 'Worksheet analysis not available.',
+        variant: 'destructive',
+      })
+      return
     }
 
     if (isCustom && !customPrompt.trim()) {
-      toast({ title: "Custom Prompt Required", description: "Please enter a custom prompt to customize problem generation.", variant: "destructive" });
-      return;
+      toast({
+        title: 'Custom Prompt Required',
+        description: 'Please enter a custom prompt to customize problem generation.',
+        variant: 'destructive',
+      })
+      return
     }
-    
-    setIsLoading(true);
-    setLoadingMessage(isCustom ? "Generating customized problems..." : "Generating problems...");
-    setError(null);
-    setGeneratedProblems(null); 
+
+    setIsLoading(true)
+    setLoadingMessage(isCustom ? 'Generating customized problems...' : 'Generating problems...')
+    setError(null)
+    setGeneratedProblems(null)
 
     try {
-      const worksheetAnalysisJson = JSON.stringify(worksheetAnalysis);
-      let result;
-      if (isCustom) {
-        result = await handleCustomizeProblems(worksheetAnalysisJson, customPrompt, numProblems, accessCode);
-      } else {
-        result = await handleGenerateProblems(worksheetAnalysisJson, numProblems, accessCode);
+      const sanitizedNotes = isCustom ? sanitizeCustomPrompt(customPrompt) : undefined
+      const result = await aiClient.generatePracticeProblems(
+        worksheetAnalysis,
+        numProblems,
+        sanitizedNotes
+      )
+
+      if (isCustom && sanitizedNotes) {
+        setWorksheetAnalysis({
+          ...worksheetAnalysis,
+          additional_notes_for_generation: worksheetAnalysis.additional_notes_for_generation
+            ? `${worksheetAnalysis.additional_notes_for_generation}. ${sanitizedNotes}`
+            : sanitizedNotes,
+        })
       }
 
-      if (result.success && 'data' in result) {
-        // Cast the result data to GeneratedProblemsState
-        setGeneratedProblems(result.data as GeneratedProblemsState); 
-        toast({
-          title: "Problems Generated",
-          description: `${numProblems} practice problems have been successfully generated.`,
-        });
-      } else {
-        throw new Error(('error' in result ? result.error : "Failed to generate problems.") as string);
-      }
-    } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : "An unknown error occurred.";
-      setError(errorMessage);
+      setGeneratedProblems(result)
       toast({
-        title: "Generation Failed",
+        title: 'Problems Generated',
+        description: `${result.problems.length} practice problems have been successfully generated.`,
+      })
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : 'An unknown error occurred.'
+      setError(errorMessage)
+      toast({
+        title: 'Generation Failed',
         description: errorMessage,
-        variant: "destructive",
-      });
+        variant: 'destructive',
+      })
     } finally {
-      setIsLoading(false);
-      setLoadingMessage('');
+      setIsLoading(false)
+      setLoadingMessage('')
     }
-  };
+  }
 
   return (
     <div className="space-y-6 p-2 rounded-lg">
       <div className="space-y-2">
-        <Label htmlFor="numProblems" className="font-semibold text-md">Number of Problems</Label>
-        <Input 
-          id="numProblems" 
-          type="number" 
-          value={numProblems} 
+        <Label htmlFor="numProblems" className="font-semibold text-md">
+          Number of Problems
+        </Label>
+        <Input
+          id="numProblems"
+          type="number"
+          value={numProblems}
           onChange={(e) => {
-            const val = parseInt(e.target.value, 10);
+            const val = parseInt(e.target.value, 10)
             if (isNaN(val)) {
-              // If input is empty or not a number, default to 1.
-              setNumProblems(1);
+              setNumProblems(1)
             } else {
-              // Ensure the number is at least 1.
-              setNumProblems(Math.max(1, val));
+              setNumProblems(Math.max(1, Math.min(50, val)))
             }
-          }} 
+          }}
           min="1"
+          max="50"
           className="max-w-xs text-base"
         />
       </div>
 
-      <Button onClick={() => onGenerateProblems(false)} size="lg" className="w-full md:w-auto">
+      <Button
+        id="generate-problems-btn"
+        onClick={() => onGenerateProblems(false)}
+        size="lg"
+        className="w-full md:w-auto"
+      >
         <WandSparkles className="mr-2 h-5 w-5" /> Generate Problems
       </Button>
 
@@ -107,21 +122,29 @@ export function ProblemGenerationControls() {
           Customize Problem Generation (Optional)
         </h4>
         <div className="space-y-2">
-          <Label htmlFor="customPrompt" className="font-semibold">Your Custom Instructions</Label>
-          <Textarea 
-            id="customPrompt" 
-            placeholder="e.g., 'Make the problems slightly harder', 'Focus on addition with carrying over', 'Include more word problems'" 
+          <Label htmlFor="customPrompt" className="font-semibold">
+            Your Custom Instructions
+          </Label>
+          <Textarea
+            id="customPrompt"
+            placeholder="e.g., 'Make the denominators between 10 and 40', 'Include one word problem'"
             value={customPrompt}
             onChange={(e) => setCustomPrompt(e.target.value)}
+            maxLength={1024}
             rows={3}
             className="text-base"
           />
         </div>
-        <Button onClick={() => onGenerateProblems(true)} variant="outline" size="lg" className="w-full md:w-auto">
+        <Button
+          id="customize-regenerate-btn"
+          onClick={() => onGenerateProblems(true)}
+          variant="outline"
+          size="lg"
+          className="w-full md:w-auto"
+        >
           <RefreshCw className="mr-2 h-5 w-5" /> Customize and Regenerate
         </Button>
       </div>
     </div>
-  );
+  )
 }
-
