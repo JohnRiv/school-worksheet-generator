@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useAppContext } from '@/context/AppContext'
-import { sanitizeCustomPrompt } from '@/ai/prompts'
+import { MAX_CUSTOM_PROMPT_LENGTH, sanitizeCustomPrompt } from '@/ai/prompts'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -56,11 +56,15 @@ export function ProblemGenerationControls() {
       )
 
       if (isCustom && sanitizedNotes) {
+        const combinedNotes = worksheetAnalysis.additional_notes_for_generation
+          ? `${worksheetAnalysis.additional_notes_for_generation}. ${sanitizedNotes}`
+          : sanitizedNotes
         setWorksheetAnalysis({
           ...worksheetAnalysis,
-          additional_notes_for_generation: worksheetAnalysis.additional_notes_for_generation
-            ? `${worksheetAnalysis.additional_notes_for_generation}. ${sanitizedNotes}`
-            : sanitizedNotes,
+          additional_notes_for_generation: sanitizeCustomPrompt(
+            combinedNotes,
+            MAX_CUSTOM_PROMPT_LENGTH
+          ),
         })
       }
 

@@ -6,15 +6,24 @@ import { UploadCloud, Camera, Zap, FileUp, XCircle, RefreshCcw, FileCheck2 } fro
 import { useToast } from '@/hooks/use-toast'
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
 
+export const MAX_FILE_SIZE_BYTES = 10 * 1024 * 1024 // 10 MB
+export const ALLOWED_IMAGE_MIME_TYPES = ['image/png', 'image/jpeg', 'image/webp'] as const
+
 interface FileUploadProps {
   onFileChange: (file: File | null, dataUri: string | null) => void
   disabled?: boolean
 }
 
-async function dataUriToImageFile(dataUri: string, filename: string): Promise<File> {
-  const res = await fetch(dataUri)
-  const blob = await res.blob()
-  return new File([blob], filename, { type: blob.type || 'image/png' })
+function dataUriToImageFile(dataUri: string, filename: string): File {
+  const [header, base64Data] = dataUri.split(',')
+  const mimeMatch = header?.match(/data:([^;]+)/)
+  const mimeType = mimeMatch?.[1] || 'image/png'
+  const binaryString = atob(base64Data || '')
+  const bytes = new Uint8Array(binaryString.length)
+  for (let i = 0; i < binaryString.length; i++) {
+    bytes[i] = binaryString.charCodeAt(i)
+  }
+  return new File([bytes], filename, { type: mimeType })
 }
 
 export function FileUpload({ onFileChange, disabled }: FileUploadProps) {
@@ -33,15 +42,35 @@ export function FileUpload({ onFileChange, disabled }: FileUploadProps) {
   const { toast } = useToast()
 
   const processFile = (file: File) => {
+    if (!ALLOWED_IMAGE_MIME_TYPES.includes(file.type as (typeof ALLOWED_IMAGE_MIME_TYPES)[number])) {
+      setPreview(null)
+      setFileName(null)
+      onFileChange(null, null)
+      toast({
+        variant: 'destructive',
+        title: 'Invalid File Type',
+        description: 'Please upload a valid PNG, JPG, or WEBP image.',
+      })
+      return
+    }
+
+    if (file.size > MAX_FILE_SIZE_BYTES) {
+      setPreview(null)
+      setFileName(null)
+      onFileChange(null, null)
+      toast({
+        variant: 'destructive',
+        title: 'File Too Large',
+        description: 'Please upload an image smaller than 10MB.',
+      })
+      return
+    }
+
     setFileName(file.name)
     const reader = new FileReader()
     reader.onloadend = () => {
       const dataUri = reader.result as string
-      if (file.type.startsWith('image/')) {
-        setPreview(dataUri)
-      } else {
-        setPreview(null)
-      }
+      setPreview(dataUri)
       onFileChange(file, dataUri)
     }
     reader.readAsDataURL(file)
@@ -136,7 +165,7 @@ export function FileUpload({ onFileChange, disabled }: FileUploadProps) {
       const dataUri = canvas.toDataURL('image/png')
       const imageName = `capture-${Date.now()}.png`
       try {
-        const imageFile = await dataUriToImageFile(dataUri, imageName)
+        const imageFile = dataUriToImageFile(dataUri, imageName)
         processFile(imageFile)
       } catch (error) {
         console.error('Error converting data URI to file:', error)

@@ -11,7 +11,9 @@ import {
 import {
   buildAnalyzeWorksheetPrompt,
   buildGenerateProblemsPrompt,
+  MAX_CUSTOM_PROMPT_LENGTH,
   sanitizeCustomPrompt,
+  sanitizeWorksheetAnalysis,
   shuffleAnswerBank,
 } from './prompts'
 import {
@@ -127,14 +129,7 @@ export function createAnalyzeWorksheetChain(
   })
 
   const normalizeOutputStep = new RunnableLambda<WorksheetAnalysis, WorksheetAnalysis>(
-    async (parsed) => ({
-      identified_concepts: parsed.identified_concepts || [],
-      identified_question_formats: parsed.identified_question_formats || [],
-      example_questions: parsed.example_questions || [],
-      answer_bank_present: Boolean(parsed.answer_bank_present),
-      worksheet_directions: parsed.worksheet_directions ?? '',
-      additional_notes_for_generation: parsed.additional_notes_for_generation ?? '',
-    })
+    async (parsed) => sanitizeWorksheetAnalysis(parsed)
   )
 
   return RunnableSequence.from<AnalyzeWorksheetChainInput, WorksheetAnalysis>([
@@ -190,11 +185,17 @@ export function createGenerateProblemsChain(
       throw new Error(`Invalid worksheetAnalysis input: ${validation.errors.join('; ')}`)
     }
 
+    parsedAnalysis = sanitizeWorksheetAnalysis(parsedAnalysis)
+
     const sanitizedCustom = input.customPrompt ? sanitizeCustomPrompt(input.customPrompt) : ''
     if (sanitizedCustom) {
-      parsedAnalysis.additional_notes_for_generation = parsedAnalysis.additional_notes_for_generation
+      const combinedNotes = parsedAnalysis.additional_notes_for_generation
         ? `${parsedAnalysis.additional_notes_for_generation}. ${sanitizedCustom}`
         : sanitizedCustom
+      parsedAnalysis.additional_notes_for_generation = sanitizeCustomPrompt(
+        combinedNotes,
+        MAX_CUSTOM_PROMPT_LENGTH
+      )
     }
 
     const requestedCount = Number.isFinite(input.numberOfProblems)

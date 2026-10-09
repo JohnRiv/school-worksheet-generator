@@ -1,9 +1,10 @@
 import fs from 'node:fs'
 import path from 'node:path'
 import { describe, expect, it, vi, beforeEach } from 'vitest'
-import { render, screen, waitFor } from '@testing-library/react'
+import { fireEvent, render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import App from '@/App'
+import { MAX_FILE_SIZE_BYTES } from '@/components/FileUpload'
 import type { AIClientInterface } from '@/context/AppContext'
 import type { GeneratedProblemsResult, WorksheetAnalysis } from '@/ai/schemas'
 
@@ -140,5 +141,44 @@ describe('School Worksheet Generator UI Flow (src/components/__tests__/App.test.
     )
     expect(screen.getByText('1. Simplify 10/25 =')).toBeInTheDocument()
     expect(screen.getByText('2. Simplify 14/21 =')).toBeInTheDocument()
+  })
+
+  it('rejects unsupported file types dropped onto the upload zone', async () => {
+    render(<App customAIClient={mockAIClient} />)
+
+    const dropZone = screen.getByRole('button', { name: /image upload area/i })
+    const invalidFile = new File(['<script>alert(1)</script>'], 'exploit.html', {
+      type: 'text/html',
+    })
+
+    fireEvent.drop(dropZone, {
+      dataTransfer: {
+        files: [invalidFile],
+      },
+    })
+
+    await waitFor(() => {
+      expect(screen.getByText('Invalid File Type')).toBeInTheDocument()
+    })
+    expect(screen.getByRole('button', { name: /analyze worksheet/i })).toBeDisabled()
+  })
+
+  it('rejects image files exceeding the 10MB size limit', async () => {
+    render(<App customAIClient={mockAIClient} />)
+
+    const dropZone = screen.getByRole('button', { name: /image upload area/i })
+    const oversizedFile = new File(['img'], 'huge.png', { type: 'image/png' })
+    Object.defineProperty(oversizedFile, 'size', { value: MAX_FILE_SIZE_BYTES + 1024 })
+
+    fireEvent.drop(dropZone, {
+      dataTransfer: {
+        files: [oversizedFile],
+      },
+    })
+
+    await waitFor(() => {
+      expect(screen.getByText('File Too Large')).toBeInTheDocument()
+    })
+    expect(screen.getByRole('button', { name: /analyze worksheet/i })).toBeDisabled()
   })
 })
