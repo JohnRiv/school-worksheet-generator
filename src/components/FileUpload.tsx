@@ -198,7 +198,8 @@ export function FileUpload({ onFileChange, disabled }: FileUploadProps) {
     if (disabled || isLoadingSample) return
     setIsLoadingSample(true)
     try {
-      const response = await fetch('/sample-worksheet.jpg')
+      const sampleUrl = `${import.meta.env.BASE_URL}sample-worksheet.jpg`
+      const response = await fetch(sampleUrl)
       if (!response.ok) {
         throw new Error(`Could not load sample worksheet (HTTP ${response.status})`)
       }
